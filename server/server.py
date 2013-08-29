@@ -1,9 +1,3 @@
-"""
-This is the new server that will be used to send the emails to the users.
-It uses Flask and sqlalchemy to send the emails without buffering to the
-database.
-"""
-
 from flask import Flask, request
 from flask.ext.sqlalchemy import SQLAlchemy
 import ConfigParser
@@ -19,7 +13,7 @@ app = Flask("notify")
 app.config['sql_uri'] = port
 db = SQLAlchemy(app)
 
-class carrier(db.Model):
+class Carrier(db.Model):
     __tablename__ = 'cellCarrierInfo'
     id = db.Column(db.Integer, primary_key = True, autoincrement = True)
     carrierName = db.Column(db.Text)
@@ -29,20 +23,20 @@ class carrier(db.Model):
         self.carrierName = name
         self.domain = domain
 
-class user(db.Model):
+class User(db.Model):
     __tablename__ = 'users'
     uid_number = db.Column(db.Integer, primary_key = True)
     phone_number = db.Column(db.BigInteger)
     carrier = db.Column(db.Integer, db.ForeignKey('cellCarrierInfo.id', onupdate="cascade", ondelete="cascade"))
     admin = db.Column(db.Boolean)
 
-    def __init__(self, uid_number, phone_number, carrier, admin):
+    def __init__(self, uid_number, phone_number = None, carrier = None, admin = False):
         self.uid_number = uid_number
         self.phone_number = phone_number
         self.carrier = carrier
         self.admin = admin
 
-class service(db.Model):
+class Service(db.Model):
     __tablename__ = 'services'
     id = db.Column(db.Integer, primary_key = True, autoincrement = True)
     api_key = db.Column(db.Text)
@@ -58,7 +52,7 @@ class service(db.Model):
         self.subscription_service = subs
         self.active = active
 
-class subscription(db.Model):
+class Subscription(db.Model):
     __tablename__ = 'subscriptions'
     id = db.Column(db.Integer, primary_key = True, autoincrement = True)
     user = db.Column(db.Integer, db.ForeignKey('users.uid_number', onupdate='cascade', ondelete='cascade'))
@@ -70,7 +64,7 @@ class subscription(db.Model):
         self.service = service
         self.state = state
 
-class log(db.Model):
+class Log(db.Model):
     __tablename__ = 'logs'
     id = db.Column(db.Integer, primary_key = True, autoincrement = True)
     date = db.Column(db.DateTime, default = datetime.datetime.now())
@@ -83,12 +77,18 @@ class log(db.Model):
         self.user = user
         self.email = email
 
+def check_uid_number(uid_number):
+    return True
+
+def get_username(uid_number):
+    return "jd"
 
 @app.route("/notify", methods=['GET', 'POST'])
 def notify():
-    username = request.args.get("username", "")
-    if username == "":
-        return "no username"
+    phone_email = csh_email = None
+    uid_number = request.args.get("username", "")
+    if uid_number == "":
+        return "no uid number"
     notification = request.args.get("notification", "")
     if notification == "":
         return "no notification"
@@ -96,9 +96,40 @@ def notify():
     if api_key == "":
         return "no api key"
 
+    service = Service.query().filter_by(api_key = api_key).first()
+    if not service:
+        return "invalid API key"
+    user = Service.query().filter_by(uid_number = uid_number).first()
+    if not user: # make a user entry for the new user
+        if check_uid_number(uid_number):
+            db.session.add(User(uid_number))
+        else:
+            return "invalid uid number"
+    subscription = Subscription.query().filter(db.and_(Subscription.user == user.uid_number,
+        Subscription.service == service.id)).first()
+    if not subscription:
+        return "no subscription"
+
+    # sends the text message
+    if subscription.state == 1 or subscription.state == 2:
+        carrier = Carrier.query().filter_by(id = user.carrier).first()
+        phone_email = user.phone_number + "@" + carrier.domain
+
+    # sends the email to the csh account
+    if subscription.state == 0 or subscription.state == 2:
+        csh_email = get_username(user.uid_number) + "@csh.rit.edu"
 
 
-    return "hello"
+
+
+
+
+
+
+
+
+
+    return "sent"
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port = port)
