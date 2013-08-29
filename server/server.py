@@ -3,6 +3,7 @@ from flask.ext.sqlalchemy import SQLAlchemy
 import ConfigParser
 import datetime
 from sqlalchemy.dialects.mysql import BIT
+from mailer import mail
 
 config = ConfigParser.ConfigParser()
 config.read('config')
@@ -114,11 +115,11 @@ def notify():
     if subscription.state == 1 or subscription.state == 2:
         carrier = Carrier.query().filter_by(id = user.carrier).first()
         phone_email = user.phone_number + "@" + carrier.domain
-
+        mail(phone_email, "CSH Notification - " + service.service_name, notification)
     # sends the email to the csh account
     if subscription.state == 0 or subscription.state == 2:
         csh_email = get_username(user.uid_number) + "@csh.rit.edu"
-
+        mail(csh_email, "CSH Notification - " + service.service_name, notification)
 
 
 
