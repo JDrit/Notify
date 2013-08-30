@@ -8,7 +8,6 @@
 """
 
 from sys import argv
-import urllib.request
 import json
 import time
 import smtplib
