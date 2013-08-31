@@ -5,29 +5,34 @@ db = SQLAlchemy()
 
 class Carrier(db.Model):
     __tablename__ = 'cellCarrierInfo'
-    id = db.Column(db.Integer, primary_key = True, autoincrement = True)
+    __table_args__ = {'mysql_engine': 'InnoDB'}
+    id = db.Column(db.Integer,  primary_key = True, autoincrement = True)
     carrierName = db.Column(db.Text)
     domain = db.Column(db.Text)
-
+    users = db.relationship('User')
     def __init__(self, name, domain):
         self.carrierName = name
         self.domain = domain
 
 class User(db.Model):
     __tablename__ = 'users'
-    uid_number = db.Column(db.Integer, primary_key = True)
+    __table_args__ = {'mysql_engine': 'InnoDB'}
+    uid_number = db.Column(db.Integer, primary_key = True,
+            nullable = True)
     phone_number = db.Column(db.BigInteger)
-    carrier = db.Column(db.Integer, db.ForeignKey('cellCarrierInfo.id', onupdate="cascade", ondelete="cascade"))
+    carrier_id = db.Column(db.Integer,
+            db.ForeignKey('cellCarrierInfo.id'))
     admin = db.Column(db.Boolean)
 
     def __init__(self, uid_number, phone_number = None, carrier = None, admin = False):
         self.uid_number = uid_number
         self.phone_number = phone_number
-        self.carrier = carrier
+        self.carrier_id = carrier
         self.admin = admin
 
 class Service(db.Model):
     __tablename__ = 'services'
+    __table_args__ = {'mysql_engine': 'InnoDB'}
     id = db.Column(db.Integer, primary_key = True, autoincrement = True)
     api_key = db.Column(db.Text)
     service_name = db.Column(db.Text)
@@ -44,9 +49,10 @@ class Service(db.Model):
 
 class Subscription(db.Model):
     __tablename__ = 'subscriptions'
+    __table_args__ = {'mysql_engine': 'InnoDB'}
     id = db.Column(db.Integer, primary_key = True, autoincrement = True)
-    user = db.Column(db.Integer, db.ForeignKey('users.uid_number', onupdate='cascade', ondelete='cascade'))
-    service = db.Column(db.Integer, db.ForeignKey('services.id', onupdate='cascade', ondelete='cascade'))
+    user = db.Column(db.Integer, db.ForeignKey(User.uid_number, onupdate='cascade', ondelete='cascade'))
+    service = db.Column(db.Integer, db.ForeignKey(Service.id, onupdate='cascade', ondelete='cascade'))
     state = db.Column(db.Integer)
 
     def __init__(self, user, service, state):
@@ -56,10 +62,11 @@ class Subscription(db.Model):
 
 class Log(db.Model):
     __tablename__ = 'logs'
+    __table_args__ = {'mysql_engine': 'InnoDB'}
     id = db.Column(db.Integer, primary_key = True, autoincrement = True)
     date = db.Column(db.DateTime, default = datetime.datetime.now())
-    service = db.Column(db.Integer, db.ForeignKey('services.id', onupdate='cascade', ondelete='cascade'))
-    user = db.Column(db.Integer, db.ForeignKey('users.uid_number', onupdate='cascade', ondelete='cascade'))
+    service = db.Column(db.Integer, db.ForeignKey(Service.id, onupdate='cascade', ondelete='cascade'))
+    user = db.Column(db.Integer, db.ForeignKey(User.uid_number, onupdate='cascade', ondelete='cascade'))
     email = db.Column(db.Text)
 
     def __init__(self, service, user, email):
